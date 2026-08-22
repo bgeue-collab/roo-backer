@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { getSponsors } from "@/lib/db/sponsors";
+import { getSponsors, getDistinctLiaisonVolunteerNames } from "@/lib/db/sponsors";
 import { formatMoney } from "@/lib/format";
 import { tierBadgeClasses } from "@/lib/tier-colors";
 import { AddSponsorDialog } from "./_components/add-sponsor-dialog";
 import { SponsorStatTiles } from "./_components/stat-tiles";
 
 export default async function SponsorsPage() {
-  const sponsors = await getSponsors();
+  const [sponsors, volunteerNameSuggestions] = await Promise.all([
+    getSponsors(),
+    getDistinctLiaisonVolunteerNames(),
+  ]);
 
   const totalPledged = sponsors.reduce(
     (sum, sponsor) => sum + Number(sponsor.pledgedAmount),
@@ -22,7 +25,7 @@ export default async function SponsorsPage() {
     <div className="flex flex-col gap-4 p-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Sponsors</h1>
-        <AddSponsorDialog />
+        <AddSponsorDialog volunteerNameSuggestions={volunteerNameSuggestions} />
       </div>
 
       <SponsorStatTiles

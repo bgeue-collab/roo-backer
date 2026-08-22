@@ -15,9 +15,11 @@ import { SponsorForm, type SponsorFormValues } from "../../_components/sponsor-f
 export function EditSponsorDialog({
   sponsorId,
   initialValues,
+  volunteerNameSuggestions = [],
 }: {
   sponsorId: string;
   initialValues: SponsorFormValues;
+  volunteerNameSuggestions?: string[];
 }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
@@ -35,6 +37,7 @@ export function EditSponsorDialog({
           mode="edit"
           sponsorId={sponsorId}
           initialValues={initialValues}
+          volunteerNameSuggestions={volunteerNameSuggestions}
           onSuccess={({ tierChanged }) => {
             setOpen(false);
             router.refresh();

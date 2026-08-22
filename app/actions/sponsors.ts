@@ -15,29 +15,54 @@ const socialSchema = z.object({
   handle: z.string().trim().min(1, "Handle is required"),
 });
 
-const sponsorSchema = z.object({
-  name: z.string().trim().min(1, "Sponsor name is required"),
-  contactName: z.preprocess(emptyToNull, z.string().trim().nullable()),
-  contactEmail: z.preprocess(
+const contactSchema = z.object({
+  name: z.string().trim().min(1, "Contact name is required"),
+  role: z.preprocess(emptyToNull, z.string().trim().nullable()),
+  email: z.preprocess(
     emptyToNull,
     z.string().trim().email("Enter a valid email").nullable()
   ),
-  contactPhone: z.preprocess(emptyToNull, z.string().trim().nullable()),
+  phone: z.preprocess(emptyToNull, z.string().trim().nullable()),
+  isPrimary: z.boolean().default(false),
+});
+
+const liaisonSchema = z.object({
+  volunteerName: z.string().trim().min(1, "Volunteer name is required"),
+  volunteerEmail: z.preprocess(
+    emptyToNull,
+    z.string().trim().email("Enter a valid email").nullable()
+  ),
+  isPrimary: z.boolean().default(false),
+});
+
+const sponsorSchema = z.object({
+  name: z.string().trim().min(1, "Sponsor name is required"),
   pledgedAmount: z.coerce
     .number()
     .positive("Pledged amount must be greater than zero"),
   notes: z.preprocess(emptyToNull, z.string().trim().nullable()),
+  sponsorshipStartDate: z.preprocess(emptyToNull, z.string().nullable()),
+  xeroContactId: z.preprocess(emptyToNull, z.string().trim().nullable()),
   socials: z.array(socialSchema).default([]),
+  contacts: z.array(contactSchema).default([]),
+  liaisons: z.array(liaisonSchema).default([]),
 });
 
 export type SponsorFormInput = {
   name: string;
-  contactName: string;
-  contactEmail: string;
-  contactPhone: string;
   pledgedAmount: string;
   notes: string;
+  sponsorshipStartDate: string;
+  xeroContactId: string;
   socials: { platform: string; handle: string }[];
+  contacts: {
+    name: string;
+    role: string;
+    email: string;
+    phone: string;
+    isPrimary: boolean;
+  }[];
+  liaisons: { volunteerName: string; volunteerEmail: string; isPrimary: boolean }[];
 };
 
 export async function createSponsor(input: SponsorFormInput) {
@@ -46,12 +71,13 @@ export async function createSponsor(input: SponsorFormInput) {
 
   const sponsor = await createSponsorDb({
     name: parsed.name,
-    contactName: parsed.contactName,
-    contactEmail: parsed.contactEmail,
-    contactPhone: parsed.contactPhone,
     pledgedAmount: parsed.pledgedAmount.toString(),
     notes: parsed.notes,
+    sponsorshipStartDate: parsed.sponsorshipStartDate,
+    xeroContactId: parsed.xeroContactId,
     socials: parsed.socials,
+    contacts: parsed.contacts,
+    liaisons: parsed.liaisons,
   });
 
   revalidatePath("/sponsors");
@@ -64,12 +90,13 @@ export async function updateSponsor(sponsorId: string, input: SponsorFormInput) 
 
   const result = await updateSponsorDb(sponsorId, {
     name: parsed.name,
-    contactName: parsed.contactName,
-    contactEmail: parsed.contactEmail,
-    contactPhone: parsed.contactPhone,
     pledgedAmount: parsed.pledgedAmount.toString(),
     notes: parsed.notes,
+    sponsorshipStartDate: parsed.sponsorshipStartDate,
+    xeroContactId: parsed.xeroContactId,
     socials: parsed.socials,
+    contacts: parsed.contacts,
+    liaisons: parsed.liaisons,
   });
 
   revalidatePath("/sponsors");

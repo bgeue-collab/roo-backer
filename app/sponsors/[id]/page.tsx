@@ -1,7 +1,11 @@
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getSponsorById } from "@/lib/db/sponsors";
+import {
+  getSponsorById,
+  getDistinctLiaisonVolunteerNames,
+} from "@/lib/db/sponsors";
 import { getPaymentsForSponsor } from "@/lib/db/payments";
 import { getOrgSettings } from "@/lib/db/org-settings";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -20,20 +24,24 @@ export default async function SponsorDetailPage({
   const sponsor = await getSponsorById(id);
   if (!sponsor) notFound();
 
-  const [payments, orgSettings] = await Promise.all([
+  const [payments, orgSettings, volunteerNameSuggestions] = await Promise.all([
     getPaymentsForSponsor(id),
     getOrgSettings(),
+    getDistinctLiaisonVolunteerNames(),
   ]);
 
-  const currencies = new Set(payments.map((p) => p.currency));
+  const primaryContact = sponsor.contacts.find((c) => c.isPrimary) ?? null;
+
+  const cashPayments = payments.filter((p) => p.paymentType !== "in_kind");
+  const currencies = new Set(cashPayments.map((p) => p.currency));
   const receivedSummary =
-    payments.length === 0
+    cashPayments.length === 0
       ? { type: "none" as const }
       : currencies.size === 1
         ? {
             type: "single" as const,
-            currency: payments[0].currency,
-            total: payments.reduce((sum, p) => sum + Number(p.amount), 0),
+            currency: cashPayments[0].currency,
+            total: cashPayments.reduce((sum, p) => sum + Number(p.amount), 0),
           }
         : { type: "mixed" as const };
 
@@ -49,16 +57,28 @@ export default async function SponsorDetailPage({
         <div className="flex gap-2">
           <EditSponsorDialog
             sponsorId={sponsor.id}
+            volunteerNameSuggestions={volunteerNameSuggestions}
             initialValues={{
               name: sponsor.name,
-              contactName: sponsor.contactName ?? "",
-              contactEmail: sponsor.contactEmail ?? "",
-              contactPhone: sponsor.contactPhone ?? "",
               pledgedAmount: sponsor.pledgedAmount,
               notes: sponsor.notes ?? "",
+              sponsorshipStartDate: sponsor.sponsorshipStartDate ?? "",
+              xeroContactId: sponsor.xeroContactId ?? "",
               socials: sponsor.socials.map((s) => ({
                 platform: s.platform,
                 handle: s.handle,
+              })),
+              contacts: sponsor.contacts.map((c) => ({
+                name: c.name,
+                role: c.role ?? "",
+                email: c.email ?? "",
+                phone: c.phone ?? "",
+                isPrimary: c.isPrimary,
+              })),
+              liaisons: sponsor.liaisons.map((l) => ({
+                volunteerName: l.volunteerName,
+                volunteerEmail: l.volunteerEmail ?? "",
+                isPrimary: l.isPrimary,
               })),
             }}
           />
@@ -68,22 +88,52 @@ export default async function SponsorDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Contact</CardTitle>
+          <CardTitle className="text-sm">Contacts</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-1 text-sm">
-          {sponsor.contactName ? <span>{sponsor.contactName}</span> : null}
-          {sponsor.contactEmail ? <span>{sponsor.contactEmail}</span> : null}
-          {sponsor.contactPhone ? <span>{sponsor.contactPhone}</span> : null}
-          {!sponsor.contactName && !sponsor.contactEmail && !sponsor.contactPhone ? (
+        <CardContent className="flex flex-col gap-3 text-sm">
+          {sponsor.contacts.length === 0 ? (
             <span className="text-muted-foreground">No contact details on file.</span>
-          ) : null}
+          ) : (
+            sponsor.contacts.map((contact) => (
+              <div key={contact.id} className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{contact.name}</span>
+                  {contact.isPrimary ? <Badge variant="secondary">Primary</Badge> : null}
+                </div>
+                {contact.role ? (
+                  <span className="text-muted-foreground">{contact.role}</span>
+                ) : null}
+                {contact.email ? <span>{contact.email}</span> : null}
+                {contact.phone ? <span>{contact.phone}</span> : null}
+              </div>
+            ))
+          )}
           {sponsor.notes ? (
-            <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
+            <p className="whitespace-pre-wrap text-muted-foreground">
               {sponsor.notes}
             </p>
           ) : null}
         </CardContent>
       </Card>
+
+      {sponsor.liaisons.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Internal liaison</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2 text-sm">
+            {sponsor.liaisons.map((liaison) => (
+              <div key={liaison.id} className="flex items-center gap-2">
+                <span className="font-medium">{liaison.volunteerName}</span>
+                {liaison.isPrimary ? <Badge variant="secondary">Primary</Badge> : null}
+                {liaison.volunteerEmail ? (
+                  <span className="text-muted-foreground">{liaison.volunteerEmail}</span>
+                ) : null}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
@@ -93,17 +143,38 @@ export default async function SponsorDetailPage({
           <span>Pledged: {formatMoney(sponsor.pledgedAmount)}</span>
           {receivedSummary.type === "single" ? (
             <span>
-              Received: {formatMoney(receivedSummary.total, receivedSummary.currency)}
+              Received (cash): {formatMoney(receivedSummary.total, receivedSummary.currency)}
             </span>
           ) : receivedSummary.type === "mixed" ? (
             <span className="text-muted-foreground">
               Received across multiple currencies — see payments below for each amount.
             </span>
           ) : (
-            <span className="text-muted-foreground">No payments logged yet.</span>
+            <span className="text-muted-foreground">No cash payments logged yet.</span>
           )}
+          {sponsor.sponsorshipStartDate ? (
+            <span className="text-muted-foreground">
+              Sponsorship start: {formatDate(sponsor.sponsorshipStartDate)}
+            </span>
+          ) : null}
         </CardContent>
       </Card>
+
+      {sponsor.xeroContactId ? (
+        <Button
+          variant="outline"
+          className="w-fit"
+          render={
+            <a
+              href={`https://go.xero.com/Contacts/View/${sponsor.xeroContactId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View in Xero
+            </a>
+          }
+        />
+      ) : null}
 
       {sponsor.socials.length > 0 ? (
         <Card>
@@ -122,7 +193,7 @@ export default async function SponsorDetailPage({
 
       <DraftEmailButton
         sponsorName={sponsor.name}
-        contactEmail={sponsor.contactEmail}
+        contactEmail={primaryContact?.email ?? null}
         tierName={sponsor.tierName}
         orgName={orgSettings?.orgName ?? "RooBacker"}
         deliverables={sponsor.deliverables}
@@ -145,10 +216,20 @@ export default async function SponsorDetailPage({
             {payments.map((payment) => (
               <div
                 key={payment.id}
-                className="flex items-center justify-between rounded-lg border p-3 text-sm"
+                className="flex flex-col gap-1 rounded-lg border p-3 text-sm"
               >
-                <span>{formatDate(payment.paidDate)}</span>
-                <span>{formatMoney(payment.amount, payment.currency)}</span>
+                <div className="flex items-center justify-between">
+                  <span>{formatDate(payment.paidDate)}</span>
+                  <div className="flex items-center gap-2">
+                    {payment.paymentType === "in_kind" ? (
+                      <Badge variant="outline">In-kind</Badge>
+                    ) : null}
+                    <span>{formatMoney(payment.amount, payment.currency)}</span>
+                  </div>
+                </div>
+                {payment.paymentType === "in_kind" && payment.description ? (
+                  <span className="text-muted-foreground">{payment.description}</span>
+                ) : null}
               </div>
             ))}
           </div>

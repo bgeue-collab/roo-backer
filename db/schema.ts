@@ -42,9 +42,6 @@ export const tierDeliverableTemplates = pgTable("tier_deliverable_templates", {
 export const sponsors = pgTable("sponsors", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
-  contactName: text("contact_name"),
-  contactEmail: text("contact_email"),
-  contactPhone: text("contact_phone"),
   pledgedAmount: numeric("pledged_amount", {
     precision: 10,
     scale: 2,
@@ -53,8 +50,34 @@ export const sponsors = pgTable("sponsors", {
     .notNull()
     .references(() => sponsorTiers.id, { onDelete: "restrict" }),
   notes: text("notes"),
+  sponsorshipStartDate: date("sponsorship_start_date"),
+  xeroContactId: text("xero_contact_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const sponsorContacts = pgTable("sponsor_contacts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sponsorId: uuid("sponsor_id")
+    .notNull()
+    .references(() => sponsors.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  role: text("role"),
+  email: text("email"),
+  phone: text("phone"),
+  isPrimary: boolean("is_primary").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const sponsorLiaisons = pgTable("sponsor_liaisons", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sponsorId: uuid("sponsor_id")
+    .notNull()
+    .references(() => sponsors.id, { onDelete: "cascade" }),
+  volunteerName: text("volunteer_name").notNull(),
+  volunteerEmail: text("volunteer_email"),
+  isPrimary: boolean("is_primary").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const sponsorSocials = pgTable("sponsor_socials", {
@@ -75,6 +98,8 @@ export const payments = pgTable("payments", {
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   currency: text("currency").notNull().default("AUD"),
   paidDate: date("paid_date").notNull(),
+  paymentType: text("payment_type").notNull().default("cash"),
+  description: text("description"),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

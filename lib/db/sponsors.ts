@@ -1,29 +1,56 @@
-import { addWeeks, formatISO, startOfDay } from "date-fns";
+import { addWeeks, addYears, formatISO, startOfDay } from "date-fns";
 import { asc, desc, eq, and, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   sponsors,
   sponsorTiers,
   sponsorSocials,
+  sponsorContacts,
+  sponsorLiaisons,
   deliverables,
   tierDeliverableTemplates,
 } from "@/db/schema";
 import { getTierForAmount } from "@/lib/db/tiers";
+import {
+  RENEWAL_FOLLOW_UP_TITLE,
+  RENEWAL_FOLLOW_UP_DESCRIPTION,
+} from "@/lib/db/deliverables";
 
 export type SocialInput = { platform: string; handle: string };
 
+export type ContactInput = {
+  name: string;
+  role: string | null;
+  email: string | null;
+  phone: string | null;
+  isPrimary: boolean;
+};
+
+export type LiaisonInput = {
+  volunteerName: string;
+  volunteerEmail: string | null;
+  isPrimary: boolean;
+};
+
 export type SponsorInput = {
   name: string;
-  contactName: string | null;
-  contactEmail: string | null;
-  contactPhone: string | null;
   pledgedAmount: string;
   notes: string | null;
+  sponsorshipStartDate: string | null;
+  xeroContactId: string | null;
   socials: SocialInput[];
+  contacts: ContactInput[];
+  liaisons: LiaisonInput[];
 };
 
 function todayISODate() {
   return formatISO(startOfDay(new Date()), { representation: "date" });
+}
+
+/** Enforce only one isPrimary=true row: last primary in the list wins. */
+function withSinglePrimary<T extends { isPrimary: boolean }>(rows: T[]): T[] {
+  const lastPrimaryIndex = rows.map((r) => r.isPrimary).lastIndexOf(true);
+  return rows.map((row, i) => ({ ...row, isPrimary: i === lastPrimaryIndex }));
 }
 
 export async function getSponsors() {
@@ -31,7 +58,6 @@ export async function getSponsors() {
     .select({
       id: sponsors.id,
       name: sponsors.name,
-      contactName: sponsors.contactName,
       pledgedAmount: sponsors.pledgedAmount,
       tierId: sponsors.tierId,
       tierName: sponsorTiers.name,
@@ -68,11 +94,10 @@ export async function getSponsorById(sponsorId: string) {
     .select({
       id: sponsors.id,
       name: sponsors.name,
-      contactName: sponsors.contactName,
-      contactEmail: sponsors.contactEmail,
-      contactPhone: sponsors.contactPhone,
       pledgedAmount: sponsors.pledgedAmount,
       notes: sponsors.notes,
+      sponsorshipStartDate: sponsors.sponsorshipStartDate,
+      xeroContactId: sponsors.xeroContactId,
       tierId: sponsors.tierId,
       tierName: sponsorTiers.name,
       createdAt: sponsors.createdAt,
@@ -85,19 +110,45 @@ export async function getSponsorById(sponsorId: string) {
 
   if (!sponsor) return null;
 
-  const socials = await db
-    .select()
-    .from(sponsorSocials)
-    .where(eq(sponsorSocials.sponsorId, sponsorId))
-    .orderBy(asc(sponsorSocials.createdAt));
+  const [socials, contacts, liaisons, sponsorDeliverables] = await Promise.all([
+    db
+      .select()
+      .from(sponsorSocials)
+      .where(eq(sponsorSocials.sponsorId, sponsorId))
+      .orderBy(asc(sponsorSocials.createdAt)),
+    db
+      .select()
+      .from(sponsorContacts)
+      .where(eq(sponsorContacts.sponsorId, sponsorId))
+      .orderBy(desc(sponsorContacts.isPrimary), asc(sponsorContacts.createdAt)),
+    db
+      .select()
+      .from(sponsorLiaisons)
+      .where(eq(sponsorLiaisons.sponsorId, sponsorId))
+      .orderBy(desc(sponsorLiaisons.isPrimary), asc(sponsorLiaisons.createdAt)),
+    db
+      .select()
+      .from(deliverables)
+      .where(eq(deliverables.sponsorId, sponsorId))
+      .orderBy(asc(deliverables.dueDate)),
+  ]);
 
-  const sponsorDeliverables = await db
-    .select()
-    .from(deliverables)
-    .where(eq(deliverables.sponsorId, sponsorId))
-    .orderBy(asc(deliverables.dueDate));
+  return {
+    ...sponsor,
+    socials,
+    contacts,
+    liaisons,
+    deliverables: sponsorDeliverables,
+  };
+}
 
-  return { ...sponsor, socials, deliverables: sponsorDeliverables };
+/** Distinct volunteer names used across all sponsors, for liaison autocomplete. */
+export async function getDistinctLiaisonVolunteerNames() {
+  const rows = await db
+    .selectDistinct({ volunteerName: sponsorLiaisons.volunteerName })
+    .from(sponsorLiaisons)
+    .orderBy(asc(sponsorLiaisons.volunteerName));
+  return rows.map((row) => row.volunteerName);
 }
 
 async function deriveTierOrThrow(pledgedAmount: string) {
@@ -110,21 +161,54 @@ async function deriveTierOrThrow(pledgedAmount: string) {
   return tier;
 }
 
+async function replaceContacts(sponsorId: string, contacts: ContactInput[]) {
+  await db.delete(sponsorContacts).where(eq(sponsorContacts.sponsorId, sponsorId));
+  if (contacts.length > 0) {
+    await db.insert(sponsorContacts).values(
+      withSinglePrimary(contacts).map((contact) => ({
+        sponsorId,
+        name: contact.name,
+        role: contact.role,
+        email: contact.email,
+        phone: contact.phone,
+        isPrimary: contact.isPrimary,
+      }))
+    );
+  }
+}
+
+async function replaceLiaisons(sponsorId: string, liaisons: LiaisonInput[]) {
+  await db.delete(sponsorLiaisons).where(eq(sponsorLiaisons.sponsorId, sponsorId));
+  if (liaisons.length > 0) {
+    await db.insert(sponsorLiaisons).values(
+      withSinglePrimary(liaisons).map((liaison) => ({
+        sponsorId,
+        volunteerName: liaison.volunteerName,
+        volunteerEmail: liaison.volunteerEmail,
+        isPrimary: liaison.isPrimary,
+      }))
+    );
+  }
+}
+
 export async function createSponsor(data: SponsorInput) {
   const tier = await deriveTierOrThrow(data.pledgedAmount);
+  const startDate = data.sponsorshipStartDate ?? todayISODate();
 
   const [sponsor] = await db
     .insert(sponsors)
     .values({
       name: data.name,
-      contactName: data.contactName,
-      contactEmail: data.contactEmail,
-      contactPhone: data.contactPhone,
       pledgedAmount: data.pledgedAmount,
       tierId: tier.id,
       notes: data.notes,
+      sponsorshipStartDate: startDate,
+      xeroContactId: data.xeroContactId,
     })
     .returning();
+
+  await replaceContacts(sponsor.id, data.contacts);
+  await replaceLiaisons(sponsor.id, data.liaisons);
 
   if (data.socials.length > 0) {
     await db.insert(sponsorSocials).values(
@@ -141,19 +225,26 @@ export async function createSponsor(data: SponsorInput) {
     .from(tierDeliverableTemplates)
     .where(eq(tierDeliverableTemplates.tierId, tier.id));
 
-  if (templates.length > 0) {
-    const today = startOfDay(new Date());
-    await db.insert(deliverables).values(
-      templates.map((template) => ({
-        sponsorId: sponsor.id,
-        title: template.title,
-        description: template.description,
-        dueDate: formatISO(addWeeks(today, template.weeksFromStart), {
-          representation: "date",
-        }),
-      }))
-    );
-  }
+  const today = startOfDay(new Date());
+  const templateDeliverables = templates.map((template) => ({
+    sponsorId: sponsor.id,
+    title: template.title,
+    description: template.description,
+    dueDate: formatISO(addWeeks(today, template.weeksFromStart), {
+      representation: "date",
+    }),
+  }));
+
+  const renewalDeliverable = {
+    sponsorId: sponsor.id,
+    title: RENEWAL_FOLLOW_UP_TITLE,
+    description: RENEWAL_FOLLOW_UP_DESCRIPTION,
+    dueDate: formatISO(addYears(new Date(startDate), 1), {
+      representation: "date",
+    }),
+  };
+
+  await db.insert(deliverables).values([...templateDeliverables, renewalDeliverable]);
 
   return sponsor;
 }
@@ -179,15 +270,17 @@ export async function updateSponsor(
     .update(sponsors)
     .set({
       name: data.name,
-      contactName: data.contactName,
-      contactEmail: data.contactEmail,
-      contactPhone: data.contactPhone,
       pledgedAmount: data.pledgedAmount,
       tierId: tier.id,
       notes: data.notes,
+      sponsorshipStartDate: data.sponsorshipStartDate,
+      xeroContactId: data.xeroContactId,
       updatedAt: new Date(),
     })
     .where(eq(sponsors.id, sponsorId));
+
+  await replaceContacts(sponsorId, data.contacts);
+  await replaceLiaisons(sponsorId, data.liaisons);
 
   await db.delete(sponsorSocials).where(eq(sponsorSocials.sponsorId, sponsorId));
   if (data.socials.length > 0) {
@@ -204,7 +297,8 @@ export async function updateSponsor(
 }
 
 export async function deleteSponsor(sponsorId: string) {
-  // Deliverables, payments, socials, and activity_log rows all cascade via
-  // their FK constraints — no need to delete them explicitly here.
+  // Deliverables, payments, socials, contacts, liaisons, and activity_log
+  // rows all cascade via their FK constraints — no need to delete them
+  // explicitly here.
   await db.delete(sponsors).where(eq(sponsors.id, sponsorId));
 }

@@ -12,7 +12,11 @@ import {
 } from "@/components/ui/dialog";
 import { SponsorForm } from "./sponsor-form";
 
-export function AddSponsorDialog() {
+export function AddSponsorDialog({
+  volunteerNameSuggestions = [],
+}: {
+  volunteerNameSuggestions?: string[];
+}) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
@@ -28,6 +32,7 @@ export function AddSponsorDialog() {
         </DialogHeader>
         <SponsorForm
           mode="create"
+          volunteerNameSuggestions={volunteerNameSuggestions}
           onSuccess={({ sponsorId }) => {
             setOpen(false);
             router.push(`/sponsors/${sponsorId}`);

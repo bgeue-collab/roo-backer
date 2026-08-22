@@ -15,6 +15,8 @@ export async function createPayment(data: {
   amount: string;
   currency: string;
   paidDate: string;
+  paymentType: "cash" | "in_kind";
+  description: string | null;
   notes: string | null;
 }) {
   const [payment] = await db.insert(payments).values(data).returning();

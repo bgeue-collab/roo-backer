@@ -1,7 +1,11 @@
-import { addDays, formatISO, startOfDay } from "date-fns";
+import { addDays, addYears, formatISO, startOfDay } from "date-fns";
 import { and, asc, eq, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { deliverables, sponsors, activityLog } from "@/db/schema";
+
+export const RENEWAL_FOLLOW_UP_TITLE = "Renewal follow-up";
+export const RENEWAL_FOLLOW_UP_DESCRIPTION =
+  "Check in with sponsor about renewing for another year";
 
 function todayISODate() {
   return formatISO(startOfDay(new Date()), { representation: "date" });
@@ -32,6 +36,21 @@ export async function completeDeliverable(
     action: "deliverable_completed",
     performedBy: completedBy,
   });
+
+  // The renewal follow-up is a recurring reminder: completing one year's
+  // instance creates next year's, indefinitely. It never touches the
+  // sponsor's tier, pledge, or other deliverables — renewal outcomes are
+  // handled manually via the edit-sponsor flow.
+  if (deliverable.title === RENEWAL_FOLLOW_UP_TITLE) {
+    await db.insert(deliverables).values({
+      sponsorId: deliverable.sponsorId,
+      title: RENEWAL_FOLLOW_UP_TITLE,
+      description: RENEWAL_FOLLOW_UP_DESCRIPTION,
+      dueDate: formatISO(addYears(new Date(deliverable.dueDate), 1), {
+        representation: "date",
+      }),
+    });
+  }
 }
 
 export async function updateDeliverableDueDate(
