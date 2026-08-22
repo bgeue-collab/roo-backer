@@ -358,7 +358,7 @@ export function SponsorForm({
             />
             <Input
               type="email"
-              placeholder="Vol email"
+              placeholder="Vol email "
               value={liaison.volunteerEmail}
               onChange={(e) =>
                 updateLiaisonRow(index, "volunteerEmail", e.target.value)
