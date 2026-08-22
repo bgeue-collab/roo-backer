@@ -1,0 +1,109 @@
+import {
+  pgTable,
+  uuid,
+  text,
+  numeric,
+  integer,
+  boolean,
+  timestamp,
+  date,
+} from "drizzle-orm/pg-core";
+
+export const orgSettings = pgTable("org_settings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orgName: text("org_name").notNull().default("RooBacker"),
+  orgFullName: text("org_full_name")
+    .notNull()
+    .default("The RoboRoos - Student Robotics Club of SA Inc."),
+  primaryColor: text("primary_color").notNull().default("#0F766E"),
+  logoUrl: text("logo_url"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const sponsorTiers = pgTable("sponsor_tiers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  minAmount: numeric("min_amount", { precision: 10, scale: 2 }).notNull(),
+  sortOrder: integer("sort_order").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const tierDeliverableTemplates = pgTable("tier_deliverable_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  tierId: uuid("tier_id")
+    .notNull()
+    .references(() => sponsorTiers.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  weeksFromStart: integer("weeks_from_start").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const sponsors = pgTable("sponsors", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  contactName: text("contact_name"),
+  contactEmail: text("contact_email"),
+  contactPhone: text("contact_phone"),
+  pledgedAmount: numeric("pledged_amount", {
+    precision: 10,
+    scale: 2,
+  }).notNull(),
+  tierId: uuid("tier_id")
+    .notNull()
+    .references(() => sponsorTiers.id, { onDelete: "restrict" }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const sponsorSocials = pgTable("sponsor_socials", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sponsorId: uuid("sponsor_id")
+    .notNull()
+    .references(() => sponsors.id, { onDelete: "cascade" }),
+  platform: text("platform").notNull(),
+  handle: text("handle").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const payments = pgTable("payments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sponsorId: uuid("sponsor_id")
+    .notNull()
+    .references(() => sponsors.id, { onDelete: "cascade" }),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: text("currency").notNull().default("AUD"),
+  paidDate: date("paid_date").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const deliverables = pgTable("deliverables", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sponsorId: uuid("sponsor_id")
+    .notNull()
+    .references(() => sponsors.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  dueDate: date("due_date").notNull(),
+  completed: boolean("completed").notNull().default(false),
+  completedAt: timestamp("completed_at"),
+  completedBy: text("completed_by"),
+  dueDateOverridden: boolean("due_date_overridden").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const activityLog = pgTable("activity_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  deliverableId: uuid("deliverable_id")
+    .notNull()
+    .references(() => deliverables.id, { onDelete: "cascade" }),
+  sponsorId: uuid("sponsor_id")
+    .notNull()
+    .references(() => sponsors.id, { onDelete: "cascade" }),
+  action: text("action").notNull(),
+  performedBy: text("performed_by").notNull(),
+  performedAt: timestamp("performed_at").notNull().defaultNow(),
+  notes: text("notes"),
+});
