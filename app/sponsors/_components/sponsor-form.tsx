@@ -350,7 +350,7 @@ export function SponsorForm({
           <div key={index} className="flex items-center gap-2">
             <Input
               list={VOLUNTEER_NAME_DATALIST_ID}
-              placeholder="Volunteer name"
+              placeholder="Vol name"
               value={liaison.volunteerName}
               onChange={(e) =>
                 updateLiaisonRow(index, "volunteerName", e.target.value)
@@ -358,7 +358,7 @@ export function SponsorForm({
             />
             <Input
               type="email"
-              placeholder="Volunteer email"
+              placeholder="Vol email"
               value={liaison.volunteerEmail}
               onChange={(e) =>
                 updateLiaisonRow(index, "volunteerEmail", e.target.value)
