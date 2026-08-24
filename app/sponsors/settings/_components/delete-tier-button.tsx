@@ -43,13 +43,11 @@ export function DeleteTierButton({
 
   return (
     <AlertDialog>
-      <AlertDialogTrigger
-        render={
-          <Button variant="ghost" size="sm">
-            Delete tier
-          </Button>
-        }
-      />
+      <AlertDialogTrigger asChild>
+        <Button variant="ghost" size="sm">
+          Delete tier
+        </Button>
+      </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {tierName} tier?</AlertDialogTitle>

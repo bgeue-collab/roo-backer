@@ -43,7 +43,9 @@ export function DeleteSponsorButton({
 
   return (
     <AlertDialog>
-      <AlertDialogTrigger render={<Button variant="destructive">Delete</Button>} />
+      <AlertDialogTrigger asChild>
+        <Button variant="destructive">Delete</Button>
+      </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {sponsorName}?</AlertDialogTitle>

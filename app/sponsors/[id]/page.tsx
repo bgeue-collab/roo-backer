@@ -161,19 +161,15 @@ export default async function SponsorDetailPage({
       </Card>
 
       {sponsor.xeroContactId ? (
-        <Button
-          variant="outline"
-          className="w-fit"
-          render={
-            <a
-              href={`https://go.xero.com/Contacts/View/${sponsor.xeroContactId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              View in Xero
-            </a>
-          }
-        />
+        <Button variant="outline" className="w-fit" asChild>
+          <a
+            href={`https://go.xero.com/Contacts/View/${sponsor.xeroContactId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View in Xero
+          </a>
+        </Button>
       ) : null}
 
       {sponsor.socials.length > 0 ? (
