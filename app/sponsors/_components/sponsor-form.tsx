@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { createSponsor, updateSponsor } from "@/app/actions/sponsors";
+import { SOCIAL_PLATFORM_SUGGESTIONS } from "@/lib/socials";
 
 export type ContactFormValue = {
   name: string;
@@ -50,6 +51,7 @@ const emptyValues: SponsorFormValues = {
 };
 
 const VOLUNTEER_NAME_DATALIST_ID = "sponsor-liaison-volunteer-names";
+const SOCIAL_PLATFORM_DATALIST_ID = "sponsor-social-platforms";
 
 export function SponsorForm({
   mode,
@@ -407,6 +409,7 @@ export function SponsorForm({
         {values.socials.map((social, index) => (
           <div key={index} className="flex items-center gap-2">
             <Input
+              list={SOCIAL_PLATFORM_DATALIST_ID}
               placeholder="Platform (e.g. Instagram)"
               value={social.platform}
               onChange={(e) =>
@@ -431,6 +434,11 @@ export function SponsorForm({
             </Button>
           </div>
         ))}
+        <datalist id={SOCIAL_PLATFORM_DATALIST_ID}>
+          {SOCIAL_PLATFORM_SUGGESTIONS.map((platform) => (
+            <option key={platform} value={platform} />
+          ))}
+        </datalist>
       </div>
 
       <Button type="submit" disabled={isPending}>

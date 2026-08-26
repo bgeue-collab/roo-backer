@@ -9,6 +9,7 @@ import {
 import { getPaymentsForSponsor } from "@/lib/db/payments";
 import { getOrgSettings } from "@/lib/db/org-settings";
 import { formatDate, formatMoney } from "@/lib/format";
+import { getSocialHandleUrl } from "@/lib/socials";
 import { EditSponsorDialog } from "./_components/edit-sponsor-dialog";
 import { DeleteSponsorButton } from "./_components/delete-sponsor-button";
 import { LogPaymentDialog } from "./_components/log-payment-dialog";
@@ -178,11 +179,24 @@ export default async function SponsorDetailPage({
             <CardTitle className="text-sm">Social handles</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-1 text-sm">
-            {sponsor.socials.map((social) => (
-              <span key={social.id}>
-                {social.platform}: {social.handle}
-              </span>
-            ))}
+            {sponsor.socials.map((social) => {
+              const url = getSocialHandleUrl(social.platform, social.handle);
+              return url ? (
+                <a
+                  key={social.id}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-fit text-primary underline underline-offset-2 hover:no-underline"
+                >
+                  {social.platform}: {social.handle}
+                </a>
+              ) : (
+                <span key={social.id}>
+                  {social.platform}: {social.handle}
+                </span>
+              );
+            })}
           </CardContent>
         </Card>
       ) : null}
