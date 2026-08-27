@@ -262,6 +262,7 @@ async function generateStandardDeliverables(
     sponsorId,
     title: template.title,
     description: template.description,
+    resourceUrl: template.resourceUrl,
     dueDate: formatISO(addWeeks(templateReferenceDate, template.weeksFromStart), {
       representation: "date",
     }),
@@ -274,6 +275,7 @@ async function generateStandardDeliverables(
       sponsorId,
       title: RENEWAL_FOLLOW_UP_TITLE,
       description: RENEWAL_FOLLOW_UP_DESCRIPTION,
+      resourceUrl: null,
       dueDate: formatISO(addYears(renewalReferenceDate, 1), {
         representation: "date",
       }),

@@ -1,7 +1,7 @@
 import { addDays, addYears, formatISO, startOfDay } from "date-fns";
 import { and, asc, eq, lte } from "drizzle-orm";
 import { db } from "@/db";
-import { deliverables, sponsors, activityLog } from "@/db/schema";
+import { deliverables, sponsors, sponsorTiers, activityLog, sponsorLiaisons } from "@/db/schema";
 
 export const RENEWAL_FOLLOW_UP_TITLE = "Renewal follow-up";
 export const RENEWAL_FOLLOW_UP_DESCRIPTION =
@@ -106,11 +106,19 @@ export async function getActionItems() {
       id: deliverables.id,
       title: deliverables.title,
       dueDate: deliverables.dueDate,
+      resourceUrl: deliverables.resourceUrl,
       sponsorId: sponsors.id,
       sponsorName: sponsors.name,
+      tierName: sponsorTiers.name,
+      liaisonName: sponsorLiaisons.volunteerName,
     })
     .from(deliverables)
     .innerJoin(sponsors, eq(deliverables.sponsorId, sponsors.id))
+    .innerJoin(sponsorTiers, eq(sponsors.tierId, sponsorTiers.id))
+    .leftJoin(
+      sponsorLiaisons,
+      and(eq(sponsorLiaisons.sponsorId, sponsors.id), eq(sponsorLiaisons.isPrimary, true))
+    )
     .where(and(eq(deliverables.completed, false), lte(deliverables.dueDate, cutoff)))
     .orderBy(asc(deliverables.dueDate));
 

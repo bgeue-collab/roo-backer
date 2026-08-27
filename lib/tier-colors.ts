@@ -1,24 +1,31 @@
-/**
- * Colour-codes tier badges by matching common tier-name keywords, with a
- * neutral fallback for custom tier names the club might add later.
- */
-export function tierBadgeClasses(tierName: string): string {
-  const key = tierName.trim().toLowerCase();
+type TierColors = { border: string; bg: string; text: string };
 
-  if (key.includes("platinum")) {
-    return "border-blue-200 bg-blue-50 text-blue-700";
-  }
-  if (key.includes("gold")) {
-    return "border-yellow-400 bg-yellow-50 text-yellow-900";
-  }
-  if (key.includes("silver")) {
-    return "border-teal-300 bg-teal-50 text-teal-800";
-  }
-  if (key.includes("bronze")) {
-    return "border-orange-300 bg-orange-50 text-orange-800";
-  }
-  if (key.includes("basic")) {
-    return "border-gray-300 bg-gray-100 text-gray-700";
-  }
-  return "border-border bg-muted text-muted-foreground";
+const TIER_COLORS: { match: string; colors: TierColors }[] = [
+  { match: "platinum", colors: { border: "border-blue-200", bg: "bg-blue-50", text: "text-blue-700" } },
+  { match: "gold", colors: { border: "border-yellow-400", bg: "bg-yellow-50", text: "text-yellow-900" } },
+  { match: "silver", colors: { border: "border-teal-300", bg: "bg-teal-50", text: "text-teal-800" } },
+  { match: "bronze", colors: { border: "border-orange-300", bg: "bg-orange-50", text: "text-orange-800" } },
+  { match: "basic", colors: { border: "border-gray-300", bg: "bg-gray-100", text: "text-gray-700" } },
+];
+
+const FALLBACK_COLORS: TierColors = {
+  border: "border-border",
+  bg: "bg-muted",
+  text: "text-muted-foreground",
+};
+
+function resolveTierColors(tierName: string): TierColors {
+  const key = tierName.trim().toLowerCase();
+  return TIER_COLORS.find((entry) => key.includes(entry.match))?.colors ?? FALLBACK_COLORS;
+}
+
+/** Colour-codes tier badges, with a neutral fallback for custom tier names. */
+export function tierBadgeClasses(tierName: string): string {
+  const { border, bg, text } = resolveTierColors(tierName);
+  return `${border} ${bg} ${text}`;
+}
+
+/** Just the text colour — for plain coloured text, not a badge/pill. */
+export function tierTextClass(tierName: string): string {
+  return resolveTierColors(tierName).text;
 }

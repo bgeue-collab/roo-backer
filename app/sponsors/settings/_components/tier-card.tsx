@@ -11,6 +11,7 @@ type Template = {
   title: string;
   description: string | null;
   weeksFromStart: number;
+  resourceUrl: string | null;
 };
 
 export function TierCard({

@@ -38,22 +38,21 @@ export async function getTierById(tierId: string) {
 }
 
 /**
- * Highest tier whose minAmount is met by the pledged amount. Returns null if
- * the pledge doesn't reach even the lowest tier's threshold.
+ * Highest tier whose minAmount is met by the pledged amount, found by
+ * comparing minAmount values directly. Returns null if the pledge doesn't
+ * reach even the lowest tier's threshold.
+ *
+ * sortOrder is deliberately not consulted here — it only controls display
+ * order in Settings/lists and must never influence which tier gets derived.
  */
 export async function getTierForAmount(pledgedAmount: number) {
-  const tiers = await db
-    .select()
-    .from(sponsorTiers)
-    .orderBy(asc(sponsorTiers.sortOrder));
+  const tiers = await db.select().from(sponsorTiers);
 
-  let match = null;
-  for (const tier of tiers) {
-    if (pledgedAmount >= Number(tier.minAmount)) {
-      match = tier;
-    }
-  }
-  return match;
+  return tiers.reduce<(typeof tiers)[number] | null>((best, tier) => {
+    if (pledgedAmount < Number(tier.minAmount)) return best;
+    if (!best || Number(tier.minAmount) > Number(best.minAmount)) return tier;
+    return best;
+  }, null);
 }
 
 export async function createTier(data: {
@@ -104,6 +103,7 @@ export async function upsertDeliverableTemplate(data: {
   title: string;
   description: string | null;
   weeksFromStart: number;
+  resourceUrl: string | null;
 }) {
   if (data.id) {
     const [template] = await db
@@ -112,6 +112,7 @@ export async function upsertDeliverableTemplate(data: {
         title: data.title,
         description: data.description,
         weeksFromStart: data.weeksFromStart,
+        resourceUrl: data.resourceUrl,
       })
       .where(eq(tierDeliverableTemplates.id, data.id))
       .returning();
@@ -125,6 +126,7 @@ export async function upsertDeliverableTemplate(data: {
       title: data.title,
       description: data.description,
       weeksFromStart: data.weeksFromStart,
+      resourceUrl: data.resourceUrl,
     })
     .returning();
   return template;

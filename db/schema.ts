@@ -35,6 +35,9 @@ export const tierDeliverableTemplates = pgTable("tier_deliverable_templates", {
   title: text("title").notNull(),
   description: text("description"),
   weeksFromStart: integer("weeks_from_start").notNull(),
+  // Optional link to a reference file/template (e.g. Drive link to a
+  // thank-you letter or logo files). Copied onto each generated deliverable.
+  resourceUrl: text("resource_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -119,6 +122,9 @@ export const deliverables = pgTable("deliverables", {
   completedAt: timestamp("completed_at"),
   completedBy: text("completed_by"),
   dueDateOverridden: boolean("due_date_overridden").notNull().default(false),
+  // Copied from the originating template at generation time, so editing the
+  // template later doesn't retroactively change already-created deliverables.
+  resourceUrl: text("resource_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

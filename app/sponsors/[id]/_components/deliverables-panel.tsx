@@ -17,6 +17,7 @@ type Deliverable = {
   completedAt: string | Date | null;
   completedBy: string | null;
   dueDateOverridden: boolean;
+  resourceUrl: string | null;
 };
 
 function todayISODate() {
@@ -69,6 +70,16 @@ function DeliverableRow({
           <span className="text-sm text-muted-foreground">
             {deliverable.description}
           </span>
+        ) : null}
+        {deliverable.resourceUrl ? (
+          <a
+            href={deliverable.resourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-fit text-sm text-primary underline underline-offset-2 hover:no-underline"
+          >
+            View template
+          </a>
         ) : null}
 
         {deliverable.completed ? (

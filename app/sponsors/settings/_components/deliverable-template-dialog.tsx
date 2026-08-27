@@ -20,6 +20,7 @@ type Template = {
   title: string;
   description: string | null;
   weeksFromStart: number;
+  resourceUrl: string | null;
 };
 
 export function DeliverableTemplateDialog({
@@ -37,6 +38,7 @@ export function DeliverableTemplateDialog({
   const [weeksFromStart, setWeeksFromStart] = useState(
     String(template?.weeksFromStart ?? 1)
   );
+  const [resourceUrl, setResourceUrl] = useState(template?.resourceUrl ?? "");
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -50,6 +52,7 @@ export function DeliverableTemplateDialog({
           title,
           description,
           weeksFromStart: Number(weeksFromStart),
+          resourceUrl,
         });
         toast.success(template ? "Deliverable template updated." : "Deliverable template added.");
         setOpen(false);
@@ -101,6 +104,16 @@ export function DeliverableTemplateDialog({
               value={weeksFromStart}
               onChange={(e) => setWeeksFromStart(e.target.value)}
               required
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="resourceUrl">Resource link (optional)</Label>
+            <Input
+              id="resourceUrl"
+              type="url"
+              placeholder="https://drive.google.com/..."
+              value={resourceUrl}
+              onChange={(e) => setResourceUrl(e.target.value)}
             />
           </div>
           <Button type="submit" disabled={isPending}>
