@@ -20,6 +20,11 @@ export default async function SponsorsPage() {
     (sum, sponsor) => sum + sponsor.overdueCount,
     0
   );
+  const totalOutstanding = sponsors.reduce(
+    (sum, sponsor) =>
+      sponsor.outstandingAmount > 0 ? sum + sponsor.outstandingAmount : sum,
+    0
+  );
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -31,6 +36,7 @@ export default async function SponsorsPage() {
       <SponsorStatTiles
         totalSponsors={sponsors.length}
         totalPledged={formatMoney(totalPledged)}
+        totalOutstanding={formatMoney(totalOutstanding)}
         overdueCount={overdueCount}
       />
 
@@ -48,6 +54,14 @@ export default async function SponsorsPage() {
             >
               <span className="truncate font-medium">{sponsor.name}</span>
               <div className="flex shrink-0 items-center gap-3">
+                {sponsor.isPaidUp ? (
+                  <Badge
+                    variant="outline"
+                    className="border-green-300 bg-green-50 text-green-700"
+                  >
+                    Paid up
+                  </Badge>
+                ) : null}
                 <span className="text-sm tabular-nums text-muted-foreground">
                   {formatMoney(sponsor.pledgedAmount)}
                 </span>

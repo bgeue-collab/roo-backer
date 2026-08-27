@@ -22,16 +22,19 @@ function StatTile({
 export function SponsorStatTiles({
   totalSponsors,
   totalPledged,
+  totalOutstanding,
   overdueCount,
 }: {
   totalSponsors: number;
   totalPledged: string;
+  totalOutstanding: string;
   overdueCount: number;
 }) {
   return (
     <div className="flex divide-x divide-border rounded-md border">
       <StatTile label="Sponsors" value={String(totalSponsors)} />
       <StatTile label="Pledged" value={totalPledged} />
+      <StatTile label="Outstanding" value={totalOutstanding} />
       <StatTile
         label="Overdue"
         value={String(overdueCount)}

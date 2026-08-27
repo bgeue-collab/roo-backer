@@ -9,6 +9,7 @@ import {
   sponsorLiaisons,
   deliverables,
   tierDeliverableTemplates,
+  payments,
 } from "@/db/schema";
 import { getTierForAmount } from "@/lib/db/tiers";
 import {
@@ -83,10 +84,30 @@ export async function getSponsors() {
     overdueCounts.map((row) => [row.sponsorId, row.count])
   );
 
-  return rows.map((row) => ({
-    ...row,
-    overdueCount: overdueBySponsor.get(row.id) ?? 0,
-  }));
+  // Every payment (cash or in-kind, any currency) counts toward what's paid —
+  // this treats payments.amount as its AUD-equivalent value regardless.
+  const paymentTotals = await db
+    .select({
+      sponsorId: payments.sponsorId,
+      total: sql<string>`sum(${payments.amount})`,
+    })
+    .from(payments)
+    .groupBy(payments.sponsorId);
+
+  const paidBySponsor = new Map(
+    paymentTotals.map((row) => [row.sponsorId, Number(row.total)])
+  );
+
+  return rows.map((row) => {
+    const pledgedAmount = Number(row.pledgedAmount);
+    const totalPaid = paidBySponsor.get(row.id) ?? 0;
+    return {
+      ...row,
+      overdueCount: overdueBySponsor.get(row.id) ?? 0,
+      outstandingAmount: pledgedAmount - totalPaid,
+      isPaidUp: pledgedAmount > 0 && totalPaid >= pledgedAmount,
+    };
+  });
 }
 
 export async function getSponsorById(sponsorId: string) {
