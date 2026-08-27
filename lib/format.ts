@@ -1,7 +1,13 @@
-export function formatMoney(amount: number | string, currency = "AUD") {
+export function formatMoney(
+  amount: number | string,
+  currency = "AUD",
+  { wholeDollar = false }: { wholeDollar?: boolean } = {}
+) {
   return new Intl.NumberFormat("en-AU", {
     style: "currency",
     currency,
+    minimumFractionDigits: wholeDollar ? 0 : undefined,
+    maximumFractionDigits: wholeDollar ? 0 : undefined,
   }).format(Number(amount));
 }
 

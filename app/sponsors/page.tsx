@@ -35,8 +35,8 @@ export default async function SponsorsPage() {
 
       <SponsorStatTiles
         totalSponsors={sponsors.length}
-        totalPledged={formatMoney(totalPledged)}
-        totalOutstanding={formatMoney(totalOutstanding)}
+        totalPledged={formatMoney(totalPledged, "AUD", { wholeDollar: true })}
+        totalOutstanding={formatMoney(totalOutstanding, "AUD", { wholeDollar: true })}
         overdueCount={overdueCount}
       />
 
