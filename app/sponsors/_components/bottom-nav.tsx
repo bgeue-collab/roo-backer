@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, ListChecks, Settings } from "lucide-react";
+import { Users, ListChecks, Settings, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/sponsors", label: "Sponsors", icon: Users, exact: true },
   { href: "/sponsors/actions", label: "Actions", icon: ListChecks, exact: false },
   { href: "/sponsors/settings", label: "Settings", icon: Settings, exact: false },
+  { href: "/sponsors/help", label: "Help", icon: HelpCircle, exact: false },
 ];
 
 export function BottomNav() {
