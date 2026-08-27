@@ -27,7 +27,7 @@ export function DeliverableTemplateDialog({
   template,
   trigger,
 }: {
-  tierId: string;
+  tierId: string | null;
   template?: Template;
   trigger: React.ReactNode;
 }) {

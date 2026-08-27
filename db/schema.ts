@@ -30,9 +30,8 @@ export const sponsorTiers = pgTable("sponsor_tiers", {
 
 export const tierDeliverableTemplates = pgTable("tier_deliverable_templates", {
   id: uuid("id").primaryKey().defaultRandom(),
-  tierId: uuid("tier_id")
-    .notNull()
-    .references(() => sponsorTiers.id, { onDelete: "cascade" }),
+  // Null means the template applies to every sponsor regardless of tier.
+  tierId: uuid("tier_id").references(() => sponsorTiers.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   description: text("description"),
   weeksFromStart: integer("weeks_from_start").notNull(),

@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { sponsorTiers, tierDeliverableTemplates, sponsors } from "@/db/schema";
 
@@ -17,6 +17,15 @@ export async function getTiers() {
     ...tier,
     templates: templates.filter((template) => template.tierId === tier.id),
   }));
+}
+
+/** Templates with a null tierId — these apply to every sponsor's tier. */
+export async function getGlobalDeliverableTemplates() {
+  return db
+    .select()
+    .from(tierDeliverableTemplates)
+    .where(isNull(tierDeliverableTemplates.tierId))
+    .orderBy(asc(tierDeliverableTemplates.weeksFromStart));
 }
 
 export async function getTierById(tierId: string) {
@@ -91,7 +100,7 @@ export async function deleteTier(tierId: string) {
 
 export async function upsertDeliverableTemplate(data: {
   id?: string;
-  tierId: string;
+  tierId: string | null;
   title: string;
   description: string | null;
   weeksFromStart: number;

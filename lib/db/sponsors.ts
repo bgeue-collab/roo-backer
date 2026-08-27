@@ -1,5 +1,5 @@
 import { addWeeks, addYears, formatISO, startOfDay } from "date-fns";
-import { asc, desc, eq, and, lt, sql } from "drizzle-orm";
+import { asc, desc, eq, and, or, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   sponsors,
@@ -241,10 +241,17 @@ export async function createSponsor(data: SponsorInput) {
     );
   }
 
+  // Pull the sponsor's tier-specific templates together with the global
+  // (tierId null) ones that apply regardless of tier.
   const templates = await db
     .select()
     .from(tierDeliverableTemplates)
-    .where(eq(tierDeliverableTemplates.tierId, tier.id));
+    .where(
+      or(
+        eq(tierDeliverableTemplates.tierId, tier.id),
+        isNull(tierDeliverableTemplates.tierId)
+      )
+    );
 
   const today = startOfDay(new Date());
   const templateDeliverables = templates.map((template) => ({

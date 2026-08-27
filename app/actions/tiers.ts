@@ -51,7 +51,7 @@ export async function deleteTier(tierId: string) {
 
 const templateSchema = z.object({
   id: z.string().uuid().optional(),
-  tierId: z.string().uuid(),
+  tierId: z.string().uuid().nullable(),
   title: z.string().trim().min(1, "Title is required"),
   description: z.preprocess(emptyToNull, z.string().trim().nullable()),
   weeksFromStart: z.coerce.number().int().nonnegative("Weeks can't be negative"),

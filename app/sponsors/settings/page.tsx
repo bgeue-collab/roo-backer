@@ -1,12 +1,17 @@
 import { Button } from "@/components/ui/button";
 import { getOrgSettings } from "@/lib/db/org-settings";
-import { getTiers } from "@/lib/db/tiers";
+import { getTiers, getGlobalDeliverableTemplates } from "@/lib/db/tiers";
 import { OrgSettingsForm } from "./_components/org-settings-form";
 import { TierCard } from "./_components/tier-card";
 import { TierFormDialog } from "./_components/tier-form-dialog";
+import { GlobalDeliverablesCard } from "./_components/global-deliverables-card";
 
 export default async function SettingsPage() {
-  const [orgSettings, tiers] = await Promise.all([getOrgSettings(), getTiers()]);
+  const [orgSettings, tiers, globalTemplates] = await Promise.all([
+    getOrgSettings(),
+    getTiers(),
+    getGlobalDeliverableTemplates(),
+  ]);
 
   return (
     <div className="flex flex-col gap-6 p-4">
@@ -22,6 +27,11 @@ export default async function SettingsPage() {
             logoUrl: orgSettings?.logoUrl ?? "",
           }}
         />
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <h2 className="text-xl font-semibold">Global deliverables (all tiers)</h2>
+        <GlobalDeliverablesCard templates={globalTemplates} />
       </div>
 
       <div className="flex flex-col gap-3">
