@@ -51,6 +51,10 @@ export const sponsors = pgTable("sponsors", {
   notes: text("notes"),
   sponsorshipStartDate: date("sponsorship_start_date"),
   xeroContactId: text("xero_contact_id"),
+  // 'active' | 'inactive' — a visibility/calculation filter, not a soft-delete.
+  status: text("status").notNull().default("active"),
+  doNotContact: boolean("do_not_contact").notNull().default(false),
+  doNotContactReason: text("do_not_contact_reason"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

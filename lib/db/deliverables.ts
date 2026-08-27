@@ -40,16 +40,27 @@ export async function completeDeliverable(
   // The renewal follow-up is a recurring reminder: completing one year's
   // instance creates next year's, indefinitely. It never touches the
   // sponsor's tier, pledge, or other deliverables — renewal outcomes are
-  // handled manually via the edit-sponsor flow.
+  // handled manually via the edit-sponsor flow. Inactive sponsors don't get
+  // new deliverables auto-generated at all, and doNotContact sponsors
+  // shouldn't get a reminder whose whole purpose is prompting a conversation
+  // with them — skip the recurrence for either.
   if (deliverable.title === RENEWAL_FOLLOW_UP_TITLE) {
-    await db.insert(deliverables).values({
-      sponsorId: deliverable.sponsorId,
-      title: RENEWAL_FOLLOW_UP_TITLE,
-      description: RENEWAL_FOLLOW_UP_DESCRIPTION,
-      dueDate: formatISO(addYears(new Date(deliverable.dueDate), 1), {
-        representation: "date",
-      }),
-    });
+    const [sponsor] = await db
+      .select({ status: sponsors.status, doNotContact: sponsors.doNotContact })
+      .from(sponsors)
+      .where(eq(sponsors.id, deliverable.sponsorId))
+      .limit(1);
+
+    if (sponsor?.status === "active" && !sponsor.doNotContact) {
+      await db.insert(deliverables).values({
+        sponsorId: deliverable.sponsorId,
+        title: RENEWAL_FOLLOW_UP_TITLE,
+        description: RENEWAL_FOLLOW_UP_DESCRIPTION,
+        dueDate: formatISO(addYears(new Date(deliverable.dueDate), 1), {
+          representation: "date",
+        }),
+      });
+    }
   }
 }
 

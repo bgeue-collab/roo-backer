@@ -30,6 +30,8 @@ export type SponsorFormValues = {
   notes: string;
   sponsorshipStartDate: string;
   xeroContactId: string;
+  doNotContact: boolean;
+  doNotContactReason: string;
   socials: { platform: string; handle: string }[];
   contacts: ContactFormValue[];
   liaisons: LiaisonFormValue[];
@@ -45,6 +47,8 @@ const emptyValues: SponsorFormValues = {
   notes: "",
   sponsorshipStartDate: todayISODate(),
   xeroContactId: "",
+  doNotContact: false,
+  doNotContactReason: "",
   socials: [],
   contacts: [],
   liaisons: [],
@@ -271,6 +275,28 @@ export function SponsorForm({
           onChange={(e) => updateField("notes", e.target.value)}
           rows={3}
         />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between">
+          <Label>Do not contact</Label>
+          <Button
+            type="button"
+            variant={values.doNotContact ? "destructive" : "outline"}
+            size="sm"
+            onClick={() => updateField("doNotContact", !values.doNotContact)}
+          >
+            {values.doNotContact ? "Do not contact: on" : "Do not contact: off"}
+          </Button>
+        </div>
+        {values.doNotContact ? (
+          <Textarea
+            placeholder="Reason (optional)"
+            value={values.doNotContactReason}
+            onChange={(e) => updateField("doNotContactReason", e.target.value)}
+            rows={2}
+          />
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-2">

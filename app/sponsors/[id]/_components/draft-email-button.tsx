@@ -1,6 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { formatDate } from "@/lib/format";
 
 type Deliverable = {
@@ -15,14 +26,20 @@ export function DraftEmailButton({
   tierName,
   orgName,
   deliverables,
+  doNotContact = false,
+  doNotContactReason,
 }: {
   sponsorName: string;
   contactEmail: string | null;
   tierName: string;
   orgName: string;
   deliverables: Deliverable[];
+  doNotContact?: boolean;
+  doNotContactReason?: string | null;
 }) {
-  function handleClick() {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  function draftEmail() {
     const completed = deliverables.filter((d) => d.completed);
     const upcoming = deliverables
       .filter((d) => !d.completed)
@@ -63,9 +80,38 @@ export function DraftEmailButton({
     window.location.href = mailto;
   }
 
+  function handleClick() {
+    if (doNotContact) {
+      setConfirmOpen(true);
+      return;
+    }
+    draftEmail();
+  }
+
   return (
-    <Button variant="outline" onClick={handleClick}>
-      Draft update email
-    </Button>
+    <>
+      <Button variant="outline" onClick={handleClick}>
+        Draft update email
+      </Button>
+      {doNotContact ? (
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>This sponsor is marked Do Not Contact</AlertDialogTitle>
+              <AlertDialogDescription>
+                {doNotContactReason ? `Reason: ${doNotContactReason}. ` : ""}
+                Are you sure you want to draft an email to {sponsorName}?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction variant="destructive" onClick={draftEmail}>
+                Draft anyway
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : null}
+    </>
   );
 }

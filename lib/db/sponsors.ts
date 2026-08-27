@@ -39,10 +39,14 @@ export type SponsorInput = {
   notes: string | null;
   sponsorshipStartDate: string | null;
   xeroContactId: string | null;
+  doNotContact: boolean;
+  doNotContactReason: string | null;
   socials: SocialInput[];
   contacts: ContactInput[];
   liaisons: LiaisonInput[];
 };
+
+export type SponsorStatus = "active" | "inactive";
 
 function todayISODate() {
   return formatISO(startOfDay(new Date()), { representation: "date" });
@@ -54,6 +58,11 @@ function withSinglePrimary<T extends { isPrimary: boolean }>(rows: T[]): T[] {
   return rows.map((row, i) => ({ ...row, isPrimary: i === lastPrimaryIndex }));
 }
 
+/**
+ * Returns sponsors of every status — callers decide what to do with
+ * `status`/`doNotContact` (e.g. the sponsors list slices this into an
+ * active-only subset for dashboard stats vs. a toggleable display list).
+ */
 export async function getSponsors() {
   const rows = await db
     .select({
@@ -63,6 +72,9 @@ export async function getSponsors() {
       tierId: sponsors.tierId,
       tierName: sponsorTiers.name,
       tierSortOrder: sponsorTiers.sortOrder,
+      status: sponsors.status,
+      doNotContact: sponsors.doNotContact,
+      sponsorshipStartDate: sponsors.sponsorshipStartDate,
       createdAt: sponsors.createdAt,
     })
     .from(sponsors)
@@ -119,6 +131,9 @@ export async function getSponsorById(sponsorId: string) {
       notes: sponsors.notes,
       sponsorshipStartDate: sponsors.sponsorshipStartDate,
       xeroContactId: sponsors.xeroContactId,
+      status: sponsors.status,
+      doNotContact: sponsors.doNotContact,
+      doNotContactReason: sponsors.doNotContactReason,
       tierId: sponsors.tierId,
       tierName: sponsorTiers.name,
       createdAt: sponsors.createdAt,
@@ -212,6 +227,64 @@ async function replaceLiaisons(sponsorId: string, liaisons: LiaisonInput[]) {
   }
 }
 
+/**
+ * Inserts the tier's (plus global) template deliverables and, unless the
+ * sponsor is marked Do Not Contact, a renewal follow-up reminder. Shared by
+ * initial sponsor creation and the optional "regenerate deliverables" step
+ * on reactivation.
+ *
+ * The renewal follow-up exists purely to prompt a conversation with the
+ * sponsor about renewing — for a doNotContact sponsor that conversation
+ * shouldn't be getting queued up at all, so it's the one deliverable skipped
+ * here. Recognition-style template deliverables (logo on website, etc.)
+ * don't involve contacting the sponsor, so they're unaffected.
+ */
+async function generateStandardDeliverables(
+  sponsorId: string,
+  tierId: string,
+  templateReferenceDate: Date,
+  renewalReferenceDate: Date,
+  doNotContact: boolean
+) {
+  // Pull the sponsor's tier-specific templates together with the global
+  // (tierId null) ones that apply regardless of tier.
+  const templates = await db
+    .select()
+    .from(tierDeliverableTemplates)
+    .where(
+      or(
+        eq(tierDeliverableTemplates.tierId, tierId),
+        isNull(tierDeliverableTemplates.tierId)
+      )
+    );
+
+  const templateDeliverables = templates.map((template) => ({
+    sponsorId,
+    title: template.title,
+    description: template.description,
+    dueDate: formatISO(addWeeks(templateReferenceDate, template.weeksFromStart), {
+      representation: "date",
+    }),
+  }));
+
+  const newDeliverables = [...templateDeliverables];
+
+  if (!doNotContact) {
+    newDeliverables.push({
+      sponsorId,
+      title: RENEWAL_FOLLOW_UP_TITLE,
+      description: RENEWAL_FOLLOW_UP_DESCRIPTION,
+      dueDate: formatISO(addYears(renewalReferenceDate, 1), {
+        representation: "date",
+      }),
+    });
+  }
+
+  if (newDeliverables.length > 0) {
+    await db.insert(deliverables).values(newDeliverables);
+  }
+}
+
 export async function createSponsor(data: SponsorInput) {
   const tier = await deriveTierOrThrow(data.pledgedAmount);
   const startDate = data.sponsorshipStartDate ?? todayISODate();
@@ -225,6 +298,8 @@ export async function createSponsor(data: SponsorInput) {
       notes: data.notes,
       sponsorshipStartDate: startDate,
       xeroContactId: data.xeroContactId,
+      doNotContact: data.doNotContact,
+      doNotContactReason: data.doNotContactReason,
     })
     .returning();
 
@@ -241,38 +316,13 @@ export async function createSponsor(data: SponsorInput) {
     );
   }
 
-  // Pull the sponsor's tier-specific templates together with the global
-  // (tierId null) ones that apply regardless of tier.
-  const templates = await db
-    .select()
-    .from(tierDeliverableTemplates)
-    .where(
-      or(
-        eq(tierDeliverableTemplates.tierId, tier.id),
-        isNull(tierDeliverableTemplates.tierId)
-      )
-    );
-
-  const today = startOfDay(new Date());
-  const templateDeliverables = templates.map((template) => ({
-    sponsorId: sponsor.id,
-    title: template.title,
-    description: template.description,
-    dueDate: formatISO(addWeeks(today, template.weeksFromStart), {
-      representation: "date",
-    }),
-  }));
-
-  const renewalDeliverable = {
-    sponsorId: sponsor.id,
-    title: RENEWAL_FOLLOW_UP_TITLE,
-    description: RENEWAL_FOLLOW_UP_DESCRIPTION,
-    dueDate: formatISO(addYears(new Date(startDate), 1), {
-      representation: "date",
-    }),
-  };
-
-  await db.insert(deliverables).values([...templateDeliverables, renewalDeliverable]);
+  await generateStandardDeliverables(
+    sponsor.id,
+    tier.id,
+    startOfDay(new Date()),
+    new Date(startDate),
+    data.doNotContact
+  );
 
   return sponsor;
 }
@@ -303,6 +353,8 @@ export async function updateSponsor(
       notes: data.notes,
       sponsorshipStartDate: data.sponsorshipStartDate,
       xeroContactId: data.xeroContactId,
+      doNotContact: data.doNotContact,
+      doNotContactReason: data.doNotContactReason,
       updatedAt: new Date(),
     })
     .where(eq(sponsors.id, sponsorId));
@@ -329,4 +381,43 @@ export async function deleteSponsor(sponsorId: string) {
   // rows all cascade via their FK constraints — no need to delete them
   // explicitly here.
   await db.delete(sponsors).where(eq(sponsors.id, sponsorId));
+}
+
+/**
+ * Flips a sponsor's active/inactive status. This is purely a visibility and
+ * calculation filter — it never touches contacts, liaisons, payments, or
+ * deliverable history. Reactivating can optionally regenerate a fresh set of
+ * tier (+ global) deliverables and a new renewal reminder, dated from today,
+ * as if the sponsor had just signed on again.
+ */
+export async function setSponsorStatus(
+  sponsorId: string,
+  status: SponsorStatus,
+  options?: { regenerateDeliverables?: boolean }
+) {
+  const [sponsor] = await db
+    .select({ tierId: sponsors.tierId, doNotContact: sponsors.doNotContact })
+    .from(sponsors)
+    .where(eq(sponsors.id, sponsorId))
+    .limit(1);
+
+  if (!sponsor) {
+    throw new Error("Sponsor not found");
+  }
+
+  await db
+    .update(sponsors)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(sponsors.id, sponsorId));
+
+  if (status === "active" && options?.regenerateDeliverables) {
+    const today = startOfDay(new Date());
+    await generateStandardDeliverables(
+      sponsorId,
+      sponsor.tierId,
+      today,
+      today,
+      sponsor.doNotContact
+    );
+  }
 }

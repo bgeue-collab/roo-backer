@@ -8,6 +8,7 @@ import {
   createSponsor as createSponsorDb,
   updateSponsor as updateSponsorDb,
   deleteSponsor as deleteSponsorDb,
+  setSponsorStatus as setSponsorStatusDb,
 } from "@/lib/db/sponsors";
 
 const socialSchema = z.object({
@@ -43,6 +44,8 @@ const sponsorSchema = z.object({
   notes: z.preprocess(emptyToNull, z.string().trim().nullable()),
   sponsorshipStartDate: z.preprocess(emptyToNull, z.string().nullable()),
   xeroContactId: z.preprocess(emptyToNull, z.string().trim().nullable()),
+  doNotContact: z.boolean().default(false),
+  doNotContactReason: z.preprocess(emptyToNull, z.string().trim().nullable()),
   socials: z.array(socialSchema).default([]),
   contacts: z.array(contactSchema).default([]),
   liaisons: z.array(liaisonSchema).default([]),
@@ -54,6 +57,8 @@ export type SponsorFormInput = {
   notes: string;
   sponsorshipStartDate: string;
   xeroContactId: string;
+  doNotContact: boolean;
+  doNotContactReason: string;
   socials: { platform: string; handle: string }[];
   contacts: {
     name: string;
@@ -75,6 +80,8 @@ export async function createSponsor(input: SponsorFormInput) {
     notes: parsed.notes,
     sponsorshipStartDate: parsed.sponsorshipStartDate,
     xeroContactId: parsed.xeroContactId,
+    doNotContact: parsed.doNotContact,
+    doNotContactReason: parsed.doNotContactReason,
     socials: parsed.socials,
     contacts: parsed.contacts,
     liaisons: parsed.liaisons,
@@ -94,6 +101,8 @@ export async function updateSponsor(sponsorId: string, input: SponsorFormInput) 
     notes: parsed.notes,
     sponsorshipStartDate: parsed.sponsorshipStartDate,
     xeroContactId: parsed.xeroContactId,
+    doNotContact: parsed.doNotContact,
+    doNotContactReason: parsed.doNotContactReason,
     socials: parsed.socials,
     contacts: parsed.contacts,
     liaisons: parsed.liaisons,
@@ -108,4 +117,24 @@ export async function deleteSponsor(sponsorId: string) {
   await requireSession();
   await deleteSponsorDb(sponsorId);
   revalidatePath("/sponsors");
+}
+
+const setStatusSchema = z.object({
+  status: z.enum(["active", "inactive"]),
+  regenerateDeliverables: z.boolean().default(false),
+});
+
+export async function setSponsorStatus(
+  sponsorId: string,
+  input: { status: "active" | "inactive"; regenerateDeliverables?: boolean }
+) {
+  await requireSession();
+  const parsed = setStatusSchema.parse(input);
+
+  await setSponsorStatusDb(sponsorId, parsed.status, {
+    regenerateDeliverables: parsed.regenerateDeliverables,
+  });
+
+  revalidatePath("/sponsors");
+  revalidatePath(`/sponsors/${sponsorId}`);
 }

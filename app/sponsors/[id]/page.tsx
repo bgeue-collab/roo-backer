@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +16,7 @@ import { DeleteSponsorButton } from "./_components/delete-sponsor-button";
 import { LogPaymentDialog } from "./_components/log-payment-dialog";
 import { DraftEmailButton } from "./_components/draft-email-button";
 import { DeliverablesPanel } from "./_components/deliverables-panel";
+import { SponsorStatusButton } from "./_components/sponsor-status-button";
 
 export default async function SponsorDetailPage({
   params,
@@ -51,11 +53,26 @@ export default async function SponsorDetailPage({
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
           <h1 className="text-xl font-semibold">{sponsor.name}</h1>
-          <Badge variant="secondary" className="w-fit">
-            {sponsor.tierName}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="w-fit">
+              {sponsor.tierName}
+            </Badge>
+            {sponsor.status === "inactive" ? (
+              <Badge
+                variant="outline"
+                className="border-border bg-muted text-muted-foreground"
+              >
+                Inactive
+              </Badge>
+            ) : null}
+          </div>
         </div>
         <div className="flex gap-2">
+          <SponsorStatusButton
+            sponsorId={sponsor.id}
+            sponsorName={sponsor.name}
+            status={sponsor.status as "active" | "inactive"}
+          />
           <EditSponsorDialog
             sponsorId={sponsor.id}
             volunteerNameSuggestions={volunteerNameSuggestions}
@@ -65,6 +82,8 @@ export default async function SponsorDetailPage({
               notes: sponsor.notes ?? "",
               sponsorshipStartDate: sponsor.sponsorshipStartDate ?? "",
               xeroContactId: sponsor.xeroContactId ?? "",
+              doNotContact: sponsor.doNotContact,
+              doNotContactReason: sponsor.doNotContactReason ?? "",
               socials: sponsor.socials.map((s) => ({
                 platform: s.platform,
                 handle: s.handle,
@@ -86,6 +105,16 @@ export default async function SponsorDetailPage({
           <DeleteSponsorButton sponsorId={sponsor.id} sponsorName={sponsor.name} />
         </div>
       </div>
+
+      {sponsor.doNotContact ? (
+        <div className="flex items-center gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+          <TriangleAlert className="size-4 shrink-0" />
+          <span>
+            Do not contact
+            {sponsor.doNotContactReason ? `: ${sponsor.doNotContactReason}` : "."}
+          </span>
+        </div>
+      ) : null}
 
       <Card>
         <CardHeader>
@@ -207,6 +236,8 @@ export default async function SponsorDetailPage({
         tierName={sponsor.tierName}
         orgName={orgSettings?.orgName ?? "RooBacker"}
         deliverables={sponsor.deliverables}
+        doNotContact={sponsor.doNotContact}
+        doNotContactReason={sponsor.doNotContactReason}
       />
 
       <div className="flex flex-col gap-2">
